@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "DocSales MCP & API",
   "colors": {
-    "primary": "#16A34A",
+    "primary": "#e40f75",
     "light": "#07C983",
-    "dark": "#15803D"
+    "dark": "#161c34"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -115,7 +115,7 @@
   "footer": {
     "socials": {
       "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
+      "github": "https://github.com/docsales",
       "linkedin": "https://linkedin.com/company/mintlify"
     }
   }

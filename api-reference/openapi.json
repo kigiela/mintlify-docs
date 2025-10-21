@@ -1,72 +1,565 @@
 {
-  "openapi": "3.1.0",
+  "openapi": "3.0.1",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
-    "license": {
-      "name": "MIT"
-    },
-    "version": "1.0.0"
+    "title": "DocSales API Documentation",
+    "description": "<h2>Introdução a API</h2>\nA DocSales disponibiliza uma interface de programação web, no modelo REST. Por meio dessa interface, é possível conversar com o sistema da DocSales, criando, verificando documentos e realizando a sincronização com os seus sistemas.\n<br><br>O endereço base de comunicação é `web.docsales.com`, acompanhado sempre do protocolo seguro `https://` como prefixo. As versões da API são agrupadas por diretório, sufixadas ao endereço base (`https://web.docsales.com/api/v1`).\n<br><br><h2>Autenticação</h2>\nA autenticação na DocSales é feita através da utilização de um token de API. Esta token serve para que o sistema identifique a sua conta, e concede permissões para que o sistema se comunique com a DocSales em nome da conta em questão.<br><br>A maneira de se autenticar, é utilizando utilizando HTTP Bearer Token Auth. Após efetuar o login em sua conta da DocSales, você pode encontrar o token no endereço https://web.docsales.com/integrations.\n<br><br><img src='https://web.docsales.com/images/token-example.png'>\n<br><br><h2>WebHooks</h2>\nNa plataforma DocSales existem as seguintes <a href=\"https://web.docsales.com/integrations\">configurações para Webhooks</a> (quando disponível no plano):<br>\nURL - Define o ponto de acesso para o envio das informações do Webhook. A URL deve ser HTTPS e deve ser acessível pela DocSales.<br>\nVersão - Define a versão do Webhook que será utilizada para o envio das informações. As versões disponíveis atualmente são: v1 e v2 (alpha).<br>\nEventos - Define quais eventos serão enviados para a URL informada. Atualmente, os eventos disponíveis são:<br>\n<ul>\n  <li><strong>Documento assinado</strong></li>\n  <li><strong>Documento rejeitado</strong></li>\n  <li><strong>Documento cancelado</strong></li>\n  <li><strong>Documento Lido</strong></li>\n</ul>\n<br>\nO conteúdo dos Webhooks, v1, está descrito abaixo nos seguintes models: <a href=\"#model-EsignWebhook\">EsignWebhook</a> e <a href=\"#model-DocGenWebhook\">DocGenWebhook</a>\n",
+    "version": "v1"
   },
   "servers": [
     {
-      "url": "http://sandbox.mintlify.com"
-    }
-  ],
-  "security": [
-    {
-      "bearerAuth": []
+      "url": "/api/v1/"
     }
   ],
   "paths": {
-    "/plants": {
+    "/proposals/{id}": {
       "get": {
-        "description": "Returns all plants from the system that the user has access to",
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Visualizar dados de um documento",
         "parameters": [
           {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of results to return",
+            "name": "id",
+            "in": "path",
+            "description": "Podem ser usados tanto o `id`, quanto o `external_uuid` do documento",
+            "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Plant response",
+            "description": "proposal found",
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/Proposal"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/proposals?status={status}&created_at={created_at}": {
+      "get": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Busca todos os documentos de uma conta",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "sent",
+                "approved",
+                "rejected",
+                "cancelled",
+                "expired",
+                "read",
+                "error"
+              ]
+            }
+          },
+          {
+            "name": "created_at",
+            "in": "query",
+            "description": "Data no formato `YYYY-MM-DD`, que filtrará documentos com de criação maior ou igual ao valor passado.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Utilize o parâmetro `page` como query string para informar a página desejada.<br>A API retorna 50 itens por vez e informamos no header da resposta dados sobre a paginação.<br><br><strong>Headers:</strong><br>Page = Página atual, Next-Page = Próxima página, quando for a última página esse parâmetro não ficará visível.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "proposals list",
+            "content": {
+              "*/*": {
+                "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Plant"
+                    "$ref": "#/components/schemas/Proposal"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "422": {
+            "description": "created_at: invalid format, expected: YYYY-MM-DD",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/registration-data": {
+      "get": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Buscar informações cadastrais da conta para a criação de um documento",
+        "responses": {
+          "201": {
+            "description": "proposals list",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payment_methods": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "signature_methods": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "periodicity": {
+                                  "type": "integer"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "templates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "custom_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "class_name": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "field_type": {
+                            "type": "string"
+                          },
+                          "options": {
+                            "type": "string"
+                          },
+                          "order": {
+                            "type": "integer"
+                          },
+                          "name_crm_old": {
+                            "type": "string"
+                          },
+                          "key_crm_old": {
+                            "type": "string"
+                          },
+                          "id_crm_old": {
+                            "type": "string"
+                          },
+                          "class_name_crm_old": {
+                            "type": "string"
+                          },
+                          "options_crm_old": {
+                            "type": "string"
+                          },
+                          "variable": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "phone_number": {
+                            "type": "string"
+                          },
+                          "whatsapp_number": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "customer not found",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/proposals": {
+      "get": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Buscar todos os documentos de um cliente",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "Podem ser usados o `id`, `code` e `legal_code` do cliente.<br>No caso do legal code, precisa ser passado sem `ponto(.)`, `barra(/)` e traço(-), por exemplo `44497250000154`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "proposals list",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Proposal"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "customer not found",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Listar os usuários da conta",
+        "responses": {
+          "200": {
+            "description": "Listagem de usuários",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create a new user (can incur additional charges)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "User's name",
+                        "example": "Tomás"
+                      },
+                      "email": {
+                        "type": "string",
+                        "description": "User's email",
+                        "example": "tomas.coelho@docsales.com"
+                      },
+                      "active": {
+                        "type": "boolean",
+                        "description": "Inactive users can't access the use system",
+                        "example": true
+                      },
+                      "is_manager": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "can_give_discounts": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "can_access_settings": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "can_adjust_services_price": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "can_view_customers_credit_card_info": {
+                        "type": "boolean",
+                        "example": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Unexpected error",
+            "description": "Validation errors",
             "content": {
-              "application/json": {
+              "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid e-mail"
+                    }
+                  }
                 }
               }
             }
+          },
+          "422": {
+            "description": "User limit exceeded (if applicable)",
+            "content": {}
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {}
           }
-        }
-      },
-      "post": {
-        "description": "Creates a new plant in the store",
+        },
+        "x-codegen-request-body-name": "user"
+      }
+    },
+    "/users/{id}": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update an user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the user",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
-          "description": "Plant to add to the store",
           "content": {
-            "application/json": {
+            "*/*": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "type": "object",
+                "properties": {
+                  "user": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "User's name",
+                        "example": "Tomás"
+                      },
+                      "email": {
+                        "type": "string",
+                        "description": "User's email",
+                        "example": "tomas.coelho@docsales.com"
+                      },
+                      "active": {
+                        "type": "boolean",
+                        "description": "Inactive users can't access the use system",
+                        "example": true
+                      },
+                      "is_manager": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "can_give_discounts": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "can_access_settings": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "can_adjust_services_price": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "can_view_customers_credit_card_info": {
+                        "type": "boolean",
+                        "example": false
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -74,144 +567,1445 @@
         },
         "responses": {
           "200": {
-            "description": "plant response",
+            "description": "User updated successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Plant"
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "unexpected error",
+            "description": "User not found",
+            "content": {}
+          },
+          "422": {
+            "description": "At least one manager is required in every account",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "There should be at least one active manager by account."
+                    }
+                  }
                 }
               }
             }
           }
-        }
-      }
-    },
-    "/plants/{id}": {
+        },
+        "x-codegen-request-body-name": "user"
+      },
       "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
+        "tags": [
+          "Users"
+        ],
+        "summary": "Delete an user",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "ID of plant to delete",
+            "description": "The id of the user to be deleted",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int64"
+              "type": "integer"
+            }
+          },
+          {
+            "name": "transfer_remaining_documents_to",
+            "in": "query",
+            "description": "Id of the user to receive the documents of the deleted user.",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
           }
         ],
         "responses": {
           "204": {
-            "description": "Plant deleted",
+            "description": "User deleted successfully",
             "content": {}
           },
-          "400": {
-            "description": "unexpected error",
+          "404": {
+            "description": "One or more users not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "one or more users were not found"
+                    }
+                  }
                 }
               }
             }
           }
         }
       }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
-      "post": {
-        "description": "Information about a new plant added to the store",
-        "requestBody": {
-          "description": "Plant added to the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+    },
+    "/esign/documents": {
+      "get": {
+        "tags": [
+          "E-sign"
+        ],
+        "summary": "Busca todos os documentos e-sign de uma conta",
+        "parameters": [
+          {
+            "name": "created_at",
+            "in": "query",
+            "description": "Data no formato `YYYY-MM-DD`, que filtrará documentos com de criação maior ou igual ao valor passado.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Utilize o parâmetro `page` como query string para informar a página desejada.<br>A API retorna 50 itens por vez e informamos no header da resposta dados sobre a paginação.<br><br><strong>Headers:</strong><br>Page = Página atual, Next-Page = Próxima página, quando for a última página esse parâmetro não ficará visível.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listagem de documentos e-sign",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EsignDocument"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "422": {
+            "description": "created_at: invalid format, expected: YYYY-MM-DD",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
               }
             }
           }
         },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "E-sign"
+        ],
+        "summary": "Criar um documento e-sign",
+        "parameters": [
+          {
+            "name": "user_email",
+            "in": "query",
+            "description": "Use esse parâmetro para definir o usuário que criou o documento.\n",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "esign_document": {
+                    "type": "object",
+                    "properties": {
+                      "pdf": {
+                        "type": "string",
+                        "description": "Base64 binary file",
+                        "example": "BASE_64_BINARY_FILE"
+                      },
+                      "code": {
+                        "type": "string",
+                        "example": ""
+                      },
+                      "language": {
+                        "type": "string",
+                        "example": "pt-BR",
+                        "enum": [
+                          "pt-BR",
+                          "en"
+                        ]
+                      },
+                      "legislation": {
+                        "type": "string",
+                        "example": "bra",
+                        "enum": [
+                          "bra",
+                          "usa",
+                          "eur"
+                        ]
+                      },
+                      "description": {
+                        "type": "string",
+                        "example": "My Document"
+                      },
+                      "signing_order": {
+                        "type": "boolean",
+                        "description": "Só uso esse parâmetro caso a sua conta tenha essa funcionalidade habilitada.",
+                        "default": false
+                      },
+                      "expiration_date": {
+                        "type": "string",
+                        "example": "2020-10-01"
+                      },
+                      "contract_end": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD telling when the duration of the contract ends. It is used to\nalert via email when the contract is about to expire.\n",
+                        "example": "2023-10-01"
+                      },
+                      "signature_method": {
+                        "type": "string",
+                        "example": "signature_upload",
+                        "enum": [
+                          "sign_button",
+                          "signature_upload",
+                          "delivery_tracking"
+                        ]
+                      },
+                      "sign_initial": {
+                        "type": "boolean",
+                        "description": "Set to true to also collect initials with signature_upload signature_method",
+                        "example": true,
+                        "default": false
+                      },
+                      "deal_id": {
+                        "type": "string",
+                        "description": "Maps this document to your CRM deal if connected.",
+                        "example": "1234"
+                      },
+                      "signers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "role": {
+                              "type": "string",
+                              "example": "approve"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "John Doe"
+                            },
+                            "email": {
+                              "type": "string",
+                              "example": "john.does@example.com"
+                            },
+                            "signing_order": {
+                              "minimum": 1,
+                              "type": "integer",
+                              "description": "Só uso esse parâmetro caso a sua conta tenha essa funcionalidade habilitada."
+                            },
+                            "phone_number": {
+                              "type": "string",
+                              "description": "E.164 format number.",
+                              "example": "+5500900000000"
+                            },
+                            "validation_channels": {
+                              "type": "array",
+                              "description": "Specify the validation channels the signer will be subjected to.",
+                              "items": {
+                                "type": "string",
+                                "example": "sms",
+                                "enum": [
+                                  "sms"
+                                ]
+                              }
+                            },
+                            "signature_positions": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "$ref": "#/components/schemas/SignaturePositionList"
+                              },
+                              "description": "PDF pages to sign starting with 0 for the first page.",
+                              "example": {
+                                "0": [
+                                  {
+                                    "y_percentage": 50,
+                                    "x_percentage": 50,
+                                    "signature_size": "large"
+                                  },
+                                  {
+                                    "y_percentage": 90,
+                                    "x_percentage": 10,
+                                    "signature_size": "small"
+                                  }
+                                ],
+                                "1": [
+                                  {
+                                    "y_percentage": 80,
+                                    "x_percentage": 80,
+                                    "signature_size": "medium"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Documento e-sign criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsignDocument"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {}
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "\"pdf\": invalid Base64; \"description\": can't be in blank;\n\"expiration_date\": must be in the format YYYY-MM-DD and be a date greater than or equal to today;\n\"language\": is not included in the list; \"legislation\": is not included in the list;\n\"signature_method\": is not included in the list\n"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "x-codegen-request-body-name": "esign_document"
+      }
+    },
+    "/esign/documents/{id}": {
+      "get": {
+        "tags": [
+          "E-sign"
+        ],
+        "summary": "Visualizar dados de um documento e-sign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Podem ser usados tanto o `id`, quanto o `code` do documento",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+            "description": "Visualizar documento e-sign",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsignDocument"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {}
           }
-        }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/esign/documents/{id}/resend": {
+      "post": {
+        "tags": [
+          "E-sign"
+        ],
+        "summary": "Reenviar documento e-sign",
+        "parameters": [
+          {
+            "name": "user_email",
+            "in": "query",
+            "description": "Use esse parâmetro para definir o usuário que reenviou o documento.\n",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Podem ser usados tanto o `id`, quanto o `code` do documento",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Operação realizada com sucesso",
+            "content": {}
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {}
+          },
+          "422": {
+            "description": "Documento contém status diferente de sent ou read",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/esign/documents/{id}/renew_expiration": {
+      "post": {
+        "tags": [
+          "E-sign"
+        ],
+        "summary": "Renew an eSign document's expiration date",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The document's \"id\" or \"code\" fields may be used to here.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_email": {
+                    "type": "string",
+                    "description": "The account user responsible for renewing the expiration date\n",
+                    "example": "example@user.com"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful renewal",
+            "content": {}
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {}
+          },
+          "422": {
+            "description": "Document is not expired",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "x-codegen-request-body-name": "params"
+      }
+    },
+    "/esign/documents/{id}/cancel": {
+      "put": {
+        "tags": [
+          "E-sign"
+        ],
+        "summary": "Cancelar documento e-sign",
+        "parameters": [
+          {
+            "name": "user_email",
+            "in": "query",
+            "description": "Use esse parâmetro para definir o usuário que cancelou o documento.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Podem ser usados tanto o `id`, quanto o `code` do documento",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Operação realizada com sucesso",
+            "content": {}
+          },
+          "401": {
+            "description": "Not Authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {}
+          },
+          "422": {
+            "description": "Documento contém status diferente de: active, expired, read, rejected, sent",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
       }
     }
   },
   "components": {
     "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
+      "EsignWebhook": {
         "type": "object",
         "properties": {
+          "version": {
+            "type": "string",
+            "example": "v1",
+            "enum": [
+              "v1",
+              "v2"
+            ]
+          },
+          "event": {
+            "type": "string",
+            "example": "document_was_read",
+            "enum": [
+              "document_was_read",
+              "document_was_signed",
+              "document_was_partially_signed",
+              "document_was_rejected",
+              "document_was_canceled"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "document": {
+                "$ref": "#/components/schemas/EsignDocument"
+              },
+              "delivery_system": {
+                "type": "string",
+                "example": "esign"
+              }
+            }
+          }
+        }
+      },
+      "DocGenWebhook": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "v1",
+            "enum": [
+              "v1",
+              "v2"
+            ]
+          },
+          "event": {
+            "type": "string",
+            "example": "document_was_read",
+            "enum": [
+              "document_was_read",
+              "document_was_signed",
+              "document_was_partially_signed",
+              "document_was_rejected",
+              "document_was_canceled"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "document": {
+                "$ref": "#/components/schemas/Proposal"
+              },
+              "delivery_system": {
+                "type": "string",
+                "example": "docgen"
+              }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
           "name": {
-            "description": "The name of the plant",
+            "type": "string",
+            "example": "Mauricio Kigiela"
+          },
+          "email": {
+            "type": "string",
+            "example": "mauricio@docsales.com"
+          },
+          "active": {
+            "type": "boolean",
+            "example": true
+          },
+          "is_manager": {
+            "type": "boolean",
+            "example": true
+          },
+          "can_give_discounts": {
+            "type": "boolean",
+            "example": true
+          },
+          "can_access_settings": {
+            "type": "boolean",
+            "example": false
+          },
+          "can_adjust_services_price": {
+            "type": "boolean",
+            "example": false
+          },
+          "can_view_customers_credit_card_info": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "EsignDocument": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "sign_initial": {
+            "type": "boolean",
+            "example": true,
+            "default": false
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2020-09-01T15:00:00Z"
+          },
+          "code": {
+            "type": "string",
+            "example": "DS-001"
+          },
+          "esign_and_pay_enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "pdf_url": {
+            "type": "string",
+            "example": "https://s3.amazonaws.com/propostas-comerciais-app-production/proposals/000000/original/file.pdf?1598973629"
+          },
+          "description": {
+            "type": "string",
+            "example": "My Document"
+          },
+          "status": {
+            "type": "string",
+            "example": "sent",
+            "enum": [
+              "active",
+              "sent",
+              "approved",
+              "rejected",
+              "cancelled",
+              "expired",
+              "read",
+              "error"
+            ]
+          },
+          "language": {
+            "type": "string",
+            "example": "pt-BR",
+            "enum": [
+              "pt-BR",
+              "en"
+            ]
+          },
+          "legislation": {
+            "type": "string",
+            "example": "bra",
+            "enum": [
+              "bra",
+              "usa",
+              "eur"
+            ]
+          },
+          "signature_method": {
+            "type": "string",
+            "example": "signature_upload",
+            "enum": [
+              "sign_button",
+              "signature_upload",
+              "delivery_tracking"
+            ]
+          },
+          "signing_order": {
+            "type": "boolean",
+            "description": "Essa propriedade e as dos signatários só aparecerão caso o valor da propriedade seja true.",
+            "default": false
+          },
+          "approval": {
+            "type": "object",
+            "properties": {
+              "pdf_url": {
+                "type": "string",
+                "example": "https://s3.amazonaws.com/propostas-comerciais-app-production/proposals/000000/original/file.pdf?1598973629"
+              },
+              "url_to_view": {
+                "type": "string",
+                "example": "https://web.docsales.com/approval/97e46fd0-cf95-013-4a4d-12d3da1f8e74"
+              }
+            }
+          },
+          "expiration": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "example": "2020-10-01"
+              },
+              "days": {
+                "type": "integer",
+                "example": 10
+              }
+            }
+          },
+          "crm_deal": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {}
+              },
+              "user_id": {
+                "type": "string"
+              },
+              "pipeline": {
+                "type": "string"
+              }
+            }
+          },
+          "signers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "6c1ea4b2-acbe-4d83-8e36-74e13e618f57"
+                },
+                "role": {
+                  "type": "string",
+                  "example": "part",
+                  "enum": [
+                    "actor",
+                    "accountant",
+                    "administrator",
+                    "approve",
+                    "attorney",
+                    "buyer_part",
+                    "contracted",
+                    "joint_debtor",
+                    "employer",
+                    "endorsee",
+                    "endorser",
+                    "guarantor",
+                    "franchisee",
+                    "franchisor",
+                    "grantor",
+                    "awarded",
+                    "issuer",
+                    "lawyer",
+                    "locator",
+                    "legal_representative",
+                    "manager",
+                    "part",
+                    "ratifying",
+                    "receipt",
+                    "responsible",
+                    "seller_part",
+                    "tenant",
+                    "transferor",
+                    "transferee",
+                    "witness",
+                    "insured",
+                    "proponent",
+                    "real_estate_agent",
+                    "warrantor",
+                    "responsible_technician",
+                    "consenter",
+                    "lender",
+                    "borrower",
+                    "inspector",
+                    "creditor",
+                    "debtor",
+                    "receiver",
+                    "disseminator",
+                    "payer"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "example": "John Doe"
+                },
+                "email": {
+                  "type": "string",
+                  "example": "john.does@example.com"
+                },
+                "url_to_sign": {
+                  "type": "string",
+                  "example": "http://web.docsales.com/approval/85922ca0-xxxx-xxxx-5fde-6003089fe708?uuid=ce33f165-d2ec-xxxx-xxxx-fcd039c660f0"
+                },
+                "signing_order": {
+                  "minimum": 1,
+                  "type": "integer",
+                  "description": "Só aparecerá em documentos criados com ordem de assinatura."
+                },
+                "phone_number": {
+                  "type": "string",
+                  "description": "E.164 format number.",
+                  "example": "+5500900000000"
+                },
+                "validation_channels": {
+                  "type": "array",
+                  "description": "Specify the validation channels the signer will be subjected to.",
+                  "items": {
+                    "type": "string",
+                    "example": "sms",
+                    "enum": [
+                      "sms"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Proposal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "account_id": {
+            "type": "integer"
+          },
+          "code": {
             "type": "string"
           },
-          "tag": {
-            "description": "Tag to specify the type",
+          "status": {
+            "type": "integer"
+          },
+          "customer_id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "expiration_date": {
+            "type": "string"
+          },
+          "billing_cycle_id": {
+            "type": "integer"
+          },
+          "periodicity_id": {
+            "type": "integer"
+          },
+          "contract_start": {
+            "type": "string"
+          },
+          "contract_months": {
+            "type": "integer"
+          },
+          "contract_end": {
+            "type": "string"
+          },
+          "first_payment_at": {
+            "type": "string"
+          },
+          "parcels_count": {
+            "type": "integer"
+          },
+          "due_day": {
+            "type": "integer"
+          },
+          "payment_month": {
+            "type": "integer"
+          },
+          "adjustment_renewal": {
+            "type": "integer"
+          },
+          "template_id": {
+            "type": "integer"
+          },
+          "old_signature_method": {
+            "type": "integer"
+          },
+          "discount": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "integer"
+          },
+          "created_by": {
+            "type": "integer"
+          },
+          "updated_by": {
+            "type": "integer"
+          },
+          "external_uuid": {
+            "type": "string"
+          },
+          "activation": {
+            "type": "integer"
+          },
+          "economic_indicator_id": {
+            "type": "integer"
+          },
+          "adjustment_months": {
+            "type": "integer"
+          },
+          "generated": {
+            "type": "string"
+          },
+          "proposal_max": {
+            "type": "integer"
+          },
+          "proposal_count": {
+            "type": "integer"
+          },
+          "approval_id": {
+            "type": "integer"
+          },
+          "view_count": {
+            "type": "integer"
+          },
+          "contact_name": {
+            "type": "string"
+          },
+          "contact_role": {
+            "type": "string"
+          },
+          "contact_email": {
+            "type": "string"
+          },
+          "deal_id": {
+            "type": "string"
+          },
+          "deal_name": {
+            "type": "string"
+          },
+          "deal_user_id": {
+            "type": "integer"
+          },
+          "expiration_days": {
+            "type": "integer"
+          },
+          "mrr_value": {
+            "type": "integer"
+          },
+          "signature_method_id": {
+            "type": "integer"
+          },
+          "deal_crm_data": {
+            "type": "object",
+            "properties": {}
+          },
+          "account": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "document_number": {
+                "type": "string"
+              },
+              "address1": {
+                "type": "string"
+              },
+              "address2": {
+                "type": "string"
+              },
+              "postal_code": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "country_id": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "integer"
+              },
+              "admin": {
+                "type": "boolean"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "user_count": {
+                "type": "integer"
+              },
+              "expiration_date": {
+                "type": "string"
+              },
+              "logo_file_name": {
+                "type": "string"
+              },
+              "logo_content_type": {
+                "type": "string"
+              },
+              "logo_file_size": {
+                "type": "integer"
+              },
+              "logo_updated_at": {
+                "type": "string"
+              },
+              "legal_code2": {
+                "type": "string"
+              },
+              "number": {
+                "type": "string"
+              },
+              "phone1": {
+                "type": "string"
+              },
+              "phone2": {
+                "type": "string"
+              },
+              "district": {
+                "type": "string"
+              },
+              "financial_email": {
+                "type": "string"
+              },
+              "api_token": {
+                "type": "string"
+              }
+            }
+          },
+          "approval": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "proposal_id": {
+                "type": "integer"
+              },
+              "uuid": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              },
+              "approved_by": {
+                "type": "string"
+              },
+              "approved_at": {
+                "type": "string"
+              },
+              "comment": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "view_count": {
+                "type": "integer"
+              },
+              "approved_ip": {
+                "type": "string"
+              },
+              "approved_legal_code": {
+                "type": "string"
+              },
+              "data": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "template_body": {
+                "type": "string"
+              },
+              "proposal_pdf_file_name": {
+                "type": "string"
+              },
+              "proposal_pdf_content_type": {
+                "type": "string"
+              },
+              "proposal_pdf_file_size": {
+                "type": "integer"
+              },
+              "proposal_pdf_updated_at": {
+                "type": "string"
+              },
+              "analytics": {
+                "type": "string"
+              },
+              "approval_question_ids": {
+                "type": "string"
+              },
+              "question_values": {
+                "type": "string"
+              },
+              "analytics_resume": {
+                "type": "object",
+                "properties": {}
+              },
+              "customer_data": {
+                "type": "object",
+                "properties": {}
+              },
+              "updated_date": {
+                "type": "string"
+              },
+              "updated_time": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            }
+          },
+          "users": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "phone_number": {
+                "type": "string"
+              },
+              "whatsapp_number": {
+                "type": "string"
+              }
+            }
+          },
+          "customer": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "account_id": {
+                "type": "integer"
+              },
+              "code": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "alias": {
+                "type": "string"
+              },
+              "legal_code": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "customer_type": {
+                "type": "integer"
+              },
+              "legal_code2": {
+                "type": "string"
+              },
+              "postal_code": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "number": {
+                "type": "string"
+              },
+              "complement": {
+                "type": "string"
+              },
+              "district": {
+                "type": "string"
+              },
+              "phone1": {
+                "type": "string"
+              },
+              "phone2": {
+                "type": "string"
+              },
+              "changed_by": {
+                "type": "string"
+              },
+              "contact_name": {
+                "type": "string"
+              },
+              "contact_role": {
+                "type": "string"
+              },
+              "contact_email": {
+                "type": "string"
+              },
+              "external_uuid": {
+                "type": "string"
+              },
+              "whatsapp_number": {
+                "type": "string"
+              },
+              "profession": {
+                "type": "string"
+              },
+              "civil_status": {
+                "type": "string"
+              },
+              "gender": {
+                "type": "string"
+              },
+              "nationality": {
+                "type": "string"
+              },
+              "id_crm_customer": {
+                "type": "string"
+              }
+            }
+          },
+          "payment_method": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "account_id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              },
+              "uuid_smartbill": {
+                "type": "string"
+              },
+              "status_smartbill": {
+                "type": "boolean"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer"
+              },
+              "external_uuid": {
+                "type": "string"
+              },
+              "payment_type": {
+                "type": "string"
+              },
+              "collect_cc_data": {
+                "type": "boolean"
+              }
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "parcels": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "formatted_expiration_date": {
+            "type": "string"
+          },
+          "formatted_contract_start": {
+            "type": "string"
+          },
+          "formatted_contract_end": {
+            "type": "string"
+          },
+          "formatted_first_payment_at": {
+            "type": "string"
+          },
+          "formatted_created_at": {
+            "type": "string"
+          },
+          "formatted_value": {
+            "type": "string"
+          },
+          "formatted_discount": {
             "type": "string"
           }
         }
       },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
-          },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
-            }
-          }
-        ]
-      },
-      "Error": {
-        "required": [
-          "error",
-          "message"
-        ],
+      "SignaturePosition": {
         "type": "object",
         "properties": {
-          "error": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
+          "signature_size": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
           }
+        }
+      },
+      "SignaturePositionList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SignaturePosition"
         }
       }
     },
     "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
+      "Bearer": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header"
       }
     }
-  }
+  },
+  "x-original-swagger-version": "2.0"
 }
